@@ -1,0 +1,126 @@
+---
+title: "How to manipulate and plot flight delays data"
+author: "Alex Brooks"
+date: "17 August 2018"
+output: html_document
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE)
+```
+## Explore the context of the data first
+
+This vignette showcases a brief exploratory analysis of [New York flights data](https://cran.r-project.org/web/packages/nycflights13/nycflights13.pdf) from 2013 using R's DPLYR and GGPLOT packages. 
+
+## Prerequisites
+
+You need the following packages installed:
+
+1. [tidyr](https://CRAN.R-project.org/package=tidyr)
+2. [dplyr](https://CRAN.R-project.org/package=dplyr)
+3. [ggplot2](https://CRAN.R-project.org/package=ggplot2)
+4. [nycflights13](https://CRAN.R-project.org/package=nycflights13)
+
+```{r, message=FALSE}
+#load libraries
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(nycflights13)
+```
+
+## Start exploring
+
+Let's take a look at the context of the NYC flights dataset by looking at the data and statistical summary of the variables. :
+
+```{r}
+#flights that departed NYC in 2013 in tibble format
+nycflights13::flights
+#statistical summaries of the 19 variables
+summary(flights)
+```
+
+## Data manipulation: dive in
+
+Looking closely at the data often means you want to manipulate it to see more information. In this case, looking closely at the arrival delay times shows negative and positive numbers, implying some flights are late and others are early. 
+
+Dplyr is a package that enables you to wrangle and sort your data, supplying a grammar for data manipulation. It uses five verbs of data manipulation -- we will look at filter() and mutate() in this vignette. 
+
+First, let's use filter() to find how many flights arrived more than ten minutes late:
+
+```{r}
+#Find flights arriving 10 minutes late
+filter(flights, arr_delay >= 10)
+```
+
+OK - so around 95,000 of the 336,800 flights arrived more than 10 minutes late. How might that compare to flights that arrived 10 minutes early?
+
+```{r}
+#Find flights arriving 10 minutes early
+filter(flights, arr_delay >= -10)
+```
+
+Contrary to what you might think about lousy delays at airports, it seems around 202,000 flights arrived early in New York in 2013.  
+
+# Visualising the data
+
+Ggplot can visualise the emerging story in the data with a raft of plots, colours and displays.
+
+A histogram helps us see the frequency and time delays in minutes of flight arrivals and departures. 
+
+```{r}
+#Create 2 histograms showing arr_delay and dep_delay across 2013 flights
+par(mfrow=c(1,2))
+hist(flights$arr_delay, main = "Arrival Time Delays")
+hist(flights$dep_delay, main = "Departure Time Delays")
+    ```
+
+# Hello, the majority of flights arrive early?
+
+A story is starting to emerge around the high frequency of 'early' flights clustered to the left of the zero, which marks an 'on time' arrival. It also seems that the arr_delay and the dep_delay variables are highly correlated.
+
+Let's see if there's any variation to this over the year that the data was captured. For that, let's use a scatterplot.
+
+# Using ggplot for scatterplots
+
+```{r}
+data = flights  
+# Plot the time_hour variable against the arrival delay time over 2013
+ggplot(data, aes(x=time_hour, y= arr_delay)) +
+      geom_point()
+```
+
+The scatterplot above is overplotted with too much detail to clearly see the patterns.
+
+We can use the pipe operator %>% and sample_frac commands to take a random 1% sample of the flights data to get a better visualisation. 
+
+Let's also plot a smoothing line to see the trend around how many flights arrive late or early during the calendar year. 
+
+```{r, results=FALSE}
+# take a 1% random sample of the flights data to make the plot readable
+data = flights %>% sample_frac(.01)
+# add a trend line to the plot
+geom_smooth(span = 0.1)
+ggplot(data, aes(x=time_hour, y= arr_delay)) + 
+        geom_point() +
+        geom_smooth(span = 1)
+```
+
+The smoothing line reveals that the flights tend to suffer longer delays around July and August.
+
+# A trusty old bar plot
+The scatterplots give a good indication of the trend for late vs early flights over the year, but it's hard to see how the trend varies month by month.
+
+Let's classify flights as either on time or delayed by assuming any flight with a departure delay of more than 5 minutes as delayed. Let's look at this by month. 
+
+Using dplyr's mutate() function, we can classify flights as on time or delayed, which will let us plot a bar chart showing delays and on-time arrivals each month.
+
+```{r}
+flights <- flights %>%
+# creating a new variable to classify if a flight is on time or delayed
+mutate(dep_type = ifelse(dep_delay < 5, "on time", "delayed"))
+# plot a bar chart by month
+qplot(x = month, fill = dep_type, data = flights, geom = "bar", main = "Frequency of Delayed vs On Time Arrivals by Month")
+```
+
+# A final word
+The story of the New York flights data is now starting to emerge and a deeper exploratory data analysis can be embarked upon. Some richer ideas to explore could be to examine how weather, airline choice or holiday rushes impact on flight times. Some statistically challenging next steps could be to explore multivariate regression on this dataset. The basic exploration, manipulation and visualisations as outlined in this vignette using DPLYR and GGPLOT are a repeatable process for someone with basic R skills to get started examining data.
